@@ -20,9 +20,10 @@ class Settings(BaseSettings):
     app_env: Literal["local", "test", "staging", "production"] = "local"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     host: str = "0.0.0.0"
-    port: int = Field(default=8080, ge=1, le=65535)
+    port: int = Field(default=8081, ge=1, le=65535)
 
     gcp_project_id: str = ""
+    firestore_database_id: str = "(default)"
     gcs_bucket_name: str = ""
     quarantine_prefix: str = "quarantine/"
     trusted_prefix: str = "trusted/"

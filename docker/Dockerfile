@@ -16,10 +16,9 @@ RUN python -m pip install --upgrade pip \
 COPY --chown=worker:worker worker ./worker
 
 USER worker
-EXPOSE 8080
+EXPOSE 8081
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.getenv('PORT', '8080') + '/health', timeout=2)"]
+    CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.getenv('PORT', '8081') + '/health', timeout=2)"]
 
 CMD ["python", "-m", "worker"]
-

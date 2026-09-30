@@ -14,6 +14,7 @@ def test_settings_have_secure_processing_defaults(monkeypatch: pytest.MonkeyPatc
         "MAX_ARCHIVE_NESTING_DEPTH",
         "QUARANTINE_PREFIX",
         "TRUSTED_PREFIX",
+        "FIRESTORE_DATABASE_ID",
     ):
         monkeypatch.delenv(variable, raising=False)
 
@@ -25,6 +26,8 @@ def test_settings_have_secure_processing_defaults(monkeypatch: pytest.MonkeyPatc
     assert settings.max_archive_nesting_depth == 3
     assert settings.quarantine_prefix == "quarantine/"
     assert settings.trusted_prefix == "trusted/"
+    assert settings.port == 8081
+    assert settings.firestore_database_id == "(default)"
 
 
 def test_settings_reject_invalid_port() -> None:

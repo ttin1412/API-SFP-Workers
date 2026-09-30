@@ -24,5 +24,4 @@ docker-build:
 	docker build -f docker/Dockerfile -t api-sfp-workers:local .
 
 docker-run:
-	docker run --rm --env-file .env -p 8080:8080 api-sfp-workers:local
-
+	docker run --rm --env-file .env -p 8081:8081 api-sfp-workers:local
