@@ -26,7 +26,7 @@ class FakeSnapshot:
 class FakeDocument:
     snapshot: FakeSnapshot
 
-    async def get(self, transaction: FakeTransaction) -> FakeSnapshot:
+    async def get(self, transaction: FakeTransaction | None = None) -> FakeSnapshot:
         return self.snapshot
 
 
@@ -38,11 +38,24 @@ class FakeTransaction:
         self.updates.append((document, values))
 
 
+@dataclass
+class FakeBatch:
+    updates: list[tuple[FakeDocument, dict[str, Any]]] = field(default_factory=list)
+    committed: bool = False
+
+    def update(self, document: FakeDocument, values: dict[str, Any]) -> None:
+        self.updates.append((document, values))
+
+    async def commit(self) -> None:
+        self.committed = True
+
+
 class FakeClient:
     def __init__(self, file_document: FakeDocument, job_document: FakeDocument) -> None:
         self.documents = {"files": file_document, "jobs": job_document}
         self.current_collection = ""
         self.transaction_instance = FakeTransaction()
+        self.batch_instance = FakeBatch()
 
     def collection(self, name: str) -> FakeClient:
         self.current_collection = name
@@ -54,11 +67,16 @@ class FakeClient:
     def transaction(self) -> FakeTransaction:
         return self.transaction_instance
 
+    def batch(self) -> FakeBatch:
+        return self.batch_instance
+
 
 def make_repository(
     *, file_status: str = "UPLOADED", job_status: str = "QUEUED"
 ) -> tuple[FirestoreJobRepository, FakeClient, FakeDocument, FakeDocument]:
-    file_document = FakeDocument(FakeSnapshot({"status": file_status}))
+    file_document = FakeDocument(
+        FakeSnapshot({"status": file_status, "original_filename": "photo.jpg"})
+    )
     job_document = FakeDocument(
         FakeSnapshot(
             {
@@ -121,3 +139,39 @@ async def test_claim_scan_rejects_invalid_file_transition() -> None:
 
     with pytest.raises(InvalidJobStateError, match="cannot be scanned"):
         await repository.claim_scan(scan_job())
+
+
+@pytest.mark.asyncio
+async def test_loads_original_filename_from_file_document() -> None:
+    repository, _, _, _ = make_repository()
+
+    result = await repository.get_original_filename("file_123")
+
+    assert result == "photo.jpg"
+
+
+@pytest.mark.asyncio
+async def test_reject_scan_updates_file_and_job_atomically() -> None:
+    repository, client, file_document, job_document = make_repository()
+
+    await repository.reject_scan(scan_job(), "UNSUPPORTED_EXTENSION")
+
+    assert client.batch_instance.updates == [
+        (
+            file_document,
+            {
+                "status": "REJECTED",
+                "rejection_reason": "UNSUPPORTED_EXTENSION",
+                "updated_at": "server timestamp",
+            },
+        ),
+        (
+            job_document,
+            {
+                "status": "COMPLETED",
+                "error": None,
+                "updated_at": "server timestamp",
+            },
+        ),
+    ]
+    assert client.batch_instance.committed

@@ -70,7 +70,7 @@ class FirestoreJobRepository:
         return await claim(transaction)
 
     async def complete_scan(self, job: ScanJob) -> None:
-        """Mark mock scanner execution complete without advancing file state."""
+        """Mark the implemented scanner layers complete without declaring SAFE."""
         await (
             self._client.collection("jobs")
             .document(job.job_id)
@@ -81,6 +81,41 @@ class FirestoreJobRepository:
                 }
             )
         )
+
+    async def get_original_filename(self, file_id: str) -> str:
+        """Load the original filename from the API-owned file document."""
+        snapshot = await self._client.collection("files").document(file_id).get()
+        if not snapshot.exists:
+            raise JobNotFoundError(f"file {file_id!r} does not exist")
+
+        original_filename = (snapshot.to_dict() or {}).get("original_filename")
+        if not isinstance(original_filename, str) or not original_filename.strip():
+            raise InvalidJobStateError(f"file {file_id!r} has no original filename")
+        return original_filename
+
+    async def reject_scan(self, job: ScanJob, reason: str) -> None:
+        """Atomically reject a file and complete its scan job."""
+        file_ref = self._client.collection("files").document(job.file_id)
+        job_ref = self._client.collection("jobs").document(job.job_id)
+        batch = self._client.batch()
+        timestamp = self._firestore.SERVER_TIMESTAMP
+        batch.update(
+            file_ref,
+            {
+                "status": FileStatus.REJECTED.value,
+                "rejection_reason": reason,
+                "updated_at": timestamp,
+            },
+        )
+        batch.update(
+            job_ref,
+            {
+                "status": JobStatus.COMPLETED.value,
+                "error": None,
+                "updated_at": timestamp,
+            },
+        )
+        await batch.commit()
 
     async def release_scan(self, job: ScanJob, error: str) -> None:
         """Record a scanner error and release the job for Cloud Tasks retry."""

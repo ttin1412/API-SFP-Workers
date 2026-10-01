@@ -4,10 +4,11 @@ from enum import StrEnum
 
 
 class FileStatus(StrEnum):
-    """File states relevant to the Phase 6 worker."""
+    """File states relevant to the worker's scanning lifecycle."""
 
     UPLOADED = "UPLOADED"
     SCANNING = "SCANNING"
+    REJECTED = "REJECTED"
 
 
 class JobType(StrEnum):

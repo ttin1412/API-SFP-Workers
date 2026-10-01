@@ -28,4 +28,5 @@ class HandleResult(StrEnum):
     """Externally useful result of handling one delivery."""
 
     PROCESSED = "PROCESSED"
+    REJECTED = "REJECTED"
     DUPLICATE = "DUPLICATE"

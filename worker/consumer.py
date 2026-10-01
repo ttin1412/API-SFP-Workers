@@ -6,7 +6,7 @@ from worker.common.exceptions import InvalidJobStateError, JobNotFoundError
 from worker.database.firestore import FirestoreJobRepository
 from worker.handlers.scan_handler import ScanHandler
 from worker.jobs.models import ScanJob
-from worker.scanner.service import MockSecurityScanner
+from worker.scanner.service import ExtensionSecurityScanner
 
 router = APIRouter(prefix="/tasks", tags=["queue"])
 
@@ -15,7 +15,7 @@ def build_scan_handler(project_id: str, database_id: str) -> ScanHandler:
     """Build production dependencies lazily on the first queue delivery."""
     return ScanHandler(
         FirestoreJobRepository(project_id, database_id),
-        MockSecurityScanner(),
+        ExtensionSecurityScanner(),
     )
 
 

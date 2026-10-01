@@ -3,6 +3,7 @@
 from worker.common.logging import get_logger
 from worker.jobs.models import ClaimResult, HandleResult, ScanJob
 from worker.jobs.repository import JobRepository
+from worker.scanner.extension_checker import UnsupportedExtensionError
 from worker.scanner.service import SecurityScanner
 
 logger = get_logger(__name__)
@@ -26,7 +27,20 @@ class ScanHandler:
             return HandleResult.DUPLICATE
 
         try:
-            await self._scanner.scan(job)
+            original_filename = await self._repository.get_original_filename(job.file_id)
+            await self._scanner.scan(job, original_filename)
+        except UnsupportedExtensionError as exc:
+            await self._repository.reject_scan(job, exc.reason)
+            logger.info(
+                "scan_job_rejected",
+                extra={
+                    "job_id": job.job_id,
+                    "file_id": job.file_id,
+                    "reason": exc.reason,
+                    "layer": exc.layer,
+                },
+            )
+            return HandleResult.REJECTED
         except Exception as exc:
             await self._repository.release_scan(job, str(exc))
             raise
